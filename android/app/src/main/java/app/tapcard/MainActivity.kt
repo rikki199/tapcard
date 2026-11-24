@@ -178,6 +178,8 @@ class MainActivity : Activity() {
                 .put("secondsAgo", TapLog.secondsAgo())
                 .put("nfcOn", nfc?.isEnabled == true)
                 .put("commands", TapLog.commands)
+                .put("serviceStarts", TapLog.serviceStarts)
+                .put("maker", Build.MANUFACTURER.lowercase())
                 .apply {
                     // Self-check: has Android registered Tap Card for tag reads, and does it get them?
                     val adapter = nfc ?: return@apply
@@ -185,12 +187,26 @@ class MainActivity : Activity() {
                         val ce = CardEmulation.getInstance(adapter)
                         val me = ComponentName(this@MainActivity, CardHceService::class.java)
                         val aid = app.tapcard.nfc.Type4Tag.NDEF_AID_HEX
-                        put("registered", ce.getAidsForService(me, CardEmulation.CATEGORY_OTHER)
-                            ?.any { it.equals(aid, ignoreCase = true) } == true)
                         put("routed", ce.isDefaultServiceForAid(me, aid))
                     }
                 }
                 .toString()
+        }
+
+        /**
+         * Xiaomi/Redmi/Poco block apps from being started in the background unless "Autostart" is on,
+         * which stops Android's NFC system from starting CardHceService. Opens that setting.
+         */
+        @JavascriptInterface
+        fun openAutostartSettings() = runOnUiThread {
+            val candidates = listOf(
+                Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")),
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
+            )
+            for (intent in candidates) {
+                try { startActivity(intent); return@runOnUiThread } catch (e: Exception) { /* try the next one */ }
+            }
+            toast("Open Settings → Apps → Tap Card and turn on Autostart")
         }
 
         @JavascriptInterface

@@ -198,6 +198,10 @@
   <p id="tapHint">Keep both screens on. Their phone shows your card in a second or two.</p>
   <p class="tapstatus" id="tapStatus" role="status"></p>
   <p class="checks" id="tapChecks"></p>
+  <div id="autostartBox" hidden>
+    <p class="checks">Xiaomi phones: turn on <b>Autostart</b> for Tap Card, or taps can't reach it.</p>
+    <button type="button" id="autostartBtn">Open Autostart settings</button>
+  </div>
   <button type="button" id="tapClose">Done</button>
   <p class="ver" id="tapVer"></p>
 </div>
@@ -433,9 +437,10 @@
     const sinceOpen = (Date.now() - tapOpenedAt) / 1000;
     const tapped = st.secondsAgo >= 0 && st.secondsAgo <= sinceOpen + 1;
     const mark = (v) => v === true ? "✓" : v === false ? "✗" : "?";
-    $("tapChecks").textContent = `Checks: NFC on ${mark(st.nfcOn)} · registered ${mark(st.registered)} · taps reach Tap Card ${mark(st.routed)} · commands received: ${st.commands ?? "?"}`;
+    $("tapChecks").textContent = `Checks: NFC on ${mark(st.nfcOn)} · taps go to Tap Card ${mark(st.routed)} · service started: ${st.serviceStarts ?? "?"} · commands received: ${st.commands ?? "?"}`;
+    // Xiaomi blocks background starts unless Autostart is on, so the tag service never runs.
+    $("autostartBox").hidden = !(/xiaomi|redmi|poco/.test(st.maker || "") && !st.commands);
     if (!st.nfcOn) return say("NFC is off on this phone. Turn it on in Settings.", "warn");
-    if (st.registered === false) return say("Android hasn't registered Tap Card for NFC taps on this phone. Restart the phone and try again.", "warn");
     if (st.routed === false) return say("Another app on this phone answers NFC tag reads, so taps don't reach Tap Card.", "warn");
     if (st.kind === "none") return say("No card saved yet. Press Done and fill in your details.", "warn");
     if (!tapped) return say(st.kind === "link"
@@ -451,6 +456,7 @@
     }
   }
   $("tapClose").addEventListener("click", closeTap);
+  $("autostartBtn").addEventListener("click", () => native?.openAutostartSettings?.());
   // Android back button: close an open full-screen view instead of leaving the app.
   window.tapcardBack = () => {
     if (!$("tapView").hidden) { closeTap(); return true; }

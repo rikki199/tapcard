@@ -8,6 +8,11 @@ object TapLog {
     @Volatile var stage: String = ""
         private set
     @Volatile private var at: Long = 0
+    /** How many times Android started the tag service (CardHceService) since the app started. */
+    @Volatile var serviceStarts: Int = 0
+        private set
+    fun serviceStarted() { serviceStarts++ }
+
     /** Every NFC command another phone has sent to Tap Card since the app started. */
     @Volatile var commands: Int = 0
         private set

@@ -9,6 +9,11 @@ class CardHceService : HostApduService() {
 
     private var tag: Type4Tag? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        TapLog.serviceStarted()
+    }
+
     override fun processCommandApdu(commandApdu: ByteArray, extras: Bundle?): ByteArray {
         val current = tag ?: CardStore.message(this)?.let { Type4Tag(it) }?.also { tag = it }
         if (current == null) { // no card set up yet
