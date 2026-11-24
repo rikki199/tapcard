@@ -20,32 +20,48 @@ object Ndef {
         "http://" to 0x03,
     )
 
-    /** A one-record message holding a link. Phones open it in the browser (iPhone shows a banner). */
-    fun uriMessage(uri: String): ByteArray {
+    /** One record of a message: its type name format, type and payload. */
+    class Record internal constructor(val tnf: Int, val type: ByteArray, val payload: ByteArray)
+
+    /** A link. Phones open it in the browser (iPhone shows a banner). */
+    fun uriRecord(uri: String): Record {
         val (prefix, code) = URI_PREFIXES.firstOrNull { uri.startsWith(it.first, ignoreCase = true) } ?: ("" to 0x00)
         val rest = uri.substring(prefix.length).toByteArray(Charsets.UTF_8)
-        val payload = byteArrayOf(code.toByte()) + rest
-        return record(TNF_WELL_KNOWN, "U".toByteArray(Charsets.US_ASCII), payload)
+        return Record(TNF_WELL_KNOWN, "U".toByteArray(Charsets.US_ASCII), byteArrayOf(code.toByte()) + rest)
     }
 
-    /** A one-record message holding a file of the given MIME type, e.g. a text/vcard contact. */
-    fun mimeMessage(mimeType: String, payload: ByteArray): ByteArray =
-        record(TNF_MIME, mimeType.toByteArray(Charsets.US_ASCII), payload)
+    /** A file of the given MIME type, e.g. a text/vcard contact that Android opens in Contacts. */
+    fun mimeRecord(mimeType: String, payload: ByteArray): Record =
+        Record(TNF_MIME, mimeType.toByteArray(Charsets.US_ASCII), payload)
 
-    private fun record(tnf: Int, type: ByteArray, payload: ByteArray): ByteArray {
-        require(type.size <= 255) { "NDEF type too long" }
-        val short = payload.size < 256
+    /** A message made of the given records, in order. Android acts on the first record. */
+    fun message(vararg records: Record): ByteArray {
+        require(records.isNotEmpty()) { "An NDEF message needs at least one record" }
         val out = java.io.ByteArrayOutputStream()
-        out.write(FLAG_MB or FLAG_ME or (if (short) FLAG_SR else 0) or tnf)
-        out.write(type.size)
-        if (short) {
-            out.write(payload.size)
-        } else {
-            val n = payload.size
-            out.write(n ushr 24 and 0xFF); out.write(n ushr 16 and 0xFF); out.write(n ushr 8 and 0xFF); out.write(n and 0xFF)
+        records.forEachIndexed { i, r ->
+            require(r.type.size <= 255) { "NDEF type too long" }
+            val short = r.payload.size < 256
+            var header = r.tnf
+            if (i == 0) header = header or FLAG_MB
+            if (i == records.lastIndex) header = header or FLAG_ME
+            if (short) header = header or FLAG_SR
+            out.write(header)
+            out.write(r.type.size)
+            if (short) {
+                out.write(r.payload.size)
+            } else {
+                val n = r.payload.size
+                out.write(n ushr 24 and 0xFF); out.write(n ushr 16 and 0xFF); out.write(n ushr 8 and 0xFF); out.write(n and 0xFF)
+            }
+            out.write(r.type)
+            out.write(r.payload)
         }
-        out.write(type)
-        out.write(payload)
         return out.toByteArray()
     }
+
+    /** A one-record message holding a link. */
+    fun uriMessage(uri: String): ByteArray = message(uriRecord(uri))
+
+    /** A one-record message holding a file of the given MIME type. */
+    fun mimeMessage(mimeType: String, payload: ByteArray): ByteArray = message(mimeRecord(mimeType, payload))
 }

@@ -26,7 +26,32 @@ jobs:
       - name: Test NFC tag emulation
         run: ./gradlew -p nfc-core test
 
+      # The app's permanent signing key. Created once, then reused, so updates install over the
+      # old version. Needs the TAPCARD_KEY_PASSWORD repository secret; without it the build uses a
+      # temporary key that changes every time.
+      - name: Prepare signing key
+        if: github.ref == 'refs/heads/main'
+        env:
+          TAPCARD_KEY_PASSWORD: ${{ secrets.TAPCARD_KEY_PASSWORD }}
+        run: |
+          if [ -z "$TAPCARD_KEY_PASSWORD" ]; then
+            echo "::warning::No TAPCARD_KEY_PASSWORD secret: signing with a temporary key"
+            exit 0
+          fi
+          if [ ! -f tapcard-release.keystore ]; then
+            keytool -genkeypair -keystore tapcard-release.keystore -storetype PKCS12 \
+              -alias tapcard -keyalg RSA -keysize 3072 -validity 10000 \
+              -storepass "$TAPCARD_KEY_PASSWORD" -keypass "$TAPCARD_KEY_PASSWORD" -dname "CN=Tap Card"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add tapcard-release.keystore
+            git commit -m "Add the app's signing key (its password is a repository secret) [skip ci]"
+            git push
+          fi
+
       - name: Build the app
+        env:
+          TAPCARD_KEY_PASSWORD: ${{ secrets.TAPCARD_KEY_PASSWORD }}
         run: ./gradlew assembleDebug
 
       - name: Upload the .apk

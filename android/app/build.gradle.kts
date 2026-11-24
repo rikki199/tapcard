@@ -11,11 +11,29 @@ android {
         applicationId = "app.tapcard"
         minSdk = 24
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.5"
+        versionCode = 7
+        versionName = "1.6"
+    }
+
+    // Sign with the app's own permanent key when it's available, so new versions install as
+    // updates over old ones. The key file is created by the GitHub workflow and protected by the
+    // TAPCARD_KEY_PASSWORD repository secret; without it, builds use a temporary debug key.
+    val keyPassword = System.getenv("TAPCARD_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+    val keyFile = rootProject.file("tapcard-release.keystore")
+    val permanentKey = keyPassword != null && keyFile.exists()
+    signingConfigs {
+        if (permanentKey) create("tapcard") {
+            storeFile = keyFile
+            storePassword = keyPassword
+            keyAlias = "tapcard"
+            this.keyPassword = keyPassword
+        }
     }
 
     buildTypes {
+        debug {
+            if (permanentKey) signingConfig = signingConfigs.getByName("tapcard")
+        }
         release {
             isMinifyEnabled = false
         }

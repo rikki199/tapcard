@@ -149,17 +149,21 @@ class MainActivity : Activity() {
         }
 
         /**
-         * What a tap sends. With a web address, a link to your card page (works on iPhone and Android).
-         * Without one, the contact itself as a vCard (Android phones import it; iPhones ignore it).
+         * What a tap sends.
+         *  mode "contact": your contact first, so Android phones open Contacts with "save" ready and no
+         *                  browser; then the link to your card page, for phones that only follow links.
+         *  mode "link":    only the link to your card page (opens in the browser; works on iPhones).
+         * Without a web address, only the contact.
          */
         @JavascriptInterface
-        fun setCard(url: String, vcard: String) {
-            val message = when {
-                url.isNotBlank() -> Ndef.uriMessage(url)
-                vcard.isNotBlank() -> Ndef.mimeMessage("text/vcard", vcard.toByteArray(Charsets.UTF_8))
-                else -> null
+        fun setCard(url: String, vcard: String, mode: String) {
+            val contact = vcard.takeIf { it.isNotBlank() }?.let { Ndef.mimeRecord("text/vcard", it.toByteArray(Charsets.UTF_8)) }
+            val link = url.takeIf { it.isNotBlank() }?.let { Ndef.uriRecord(it) }
+            val records = when {
+                mode == "link" && link != null -> listOf(link)
+                else -> listOfNotNull(contact, link)
             }
-            CardStore.update(this@MainActivity, message)
+            CardStore.update(this@MainActivity, if (records.isEmpty()) null else Ndef.message(*records.toTypedArray()))
         }
 
         /** What a tap sends right now and what happened on the last tap, as JSON for the page. */
@@ -168,7 +172,8 @@ class MainActivity : Activity() {
             val msg = CardStore.message(this@MainActivity)
             val kind = when {
                 msg == null -> "none"
-                msg.size > 3 && (msg[0].toInt() and 0x07) == 0x01 && msg[3] == 'U'.code.toByte() -> "link"
+                (msg[0].toInt() and 0x07) == 0x01 -> "link"                 // first record is the link
+                (msg[0].toInt() and 0x40) == 0 -> "contact+link"            // contact, then more records
                 else -> "contact"
             }
             return JSONObject()
@@ -191,22 +196,6 @@ class MainActivity : Activity() {
                     }
                 }
                 .toString()
-        }
-
-        /**
-         * Xiaomi/Redmi/Poco block apps from being started in the background unless "Autostart" is on,
-         * which stops Android's NFC system from starting CardHceService. Opens that setting.
-         */
-        @JavascriptInterface
-        fun openAutostartSettings() = runOnUiThread {
-            val candidates = listOf(
-                Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")),
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
-            )
-            for (intent in candidates) {
-                try { startActivity(intent); return@runOnUiThread } catch (e: Exception) { /* try the next one */ }
-            }
-            toast("Open Settings → Apps → Tap Card and turn on Autostart")
         }
 
         @JavascriptInterface

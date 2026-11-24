@@ -88,6 +88,22 @@ class Type4TagTest {
         assertContentEquals(msg, readLikeAPhone(Type4Tag(msg)))
     }
 
+    @Test fun contactThenLinkMessage() {
+        // Matches ndeflib: message_encoder([Record('text/vcard', '', b'BEGIN:VCARD'), UriRecord('https://a.b/')])
+        val msg = Ndef.message(Ndef.mimeRecord("text/vcard", "BEGIN:VCARD".toByteArray()), Ndef.uriRecord("https://a.b/"))
+        assertContentEquals(hex("920A0B746578742F7663617264424547494E3A56434152445101055504612E622F"), msg)
+        assertContentEquals(msg, readLikeAPhone(Type4Tag(msg)))
+    }
+
+    @Test fun longContactThenLink() {
+        val vcard = ByteArray(400) { 'v'.code.toByte() }
+        val msg = Ndef.message(Ndef.mimeRecord("text/vcard", vcard), Ndef.uriRecord("https://a.b/"))
+        assertEquals(0x82, msg[0].toInt() and 0xFF)              // MB, no ME, no SR, MIME
+        val second = 6 + 10 + 400
+        assertEquals(0x51, msg[second].toInt() and 0xFF)         // ME|SR|well-known
+        assertContentEquals(msg, readLikeAPhone(Type4Tag(msg)))
+    }
+
     @Test fun selectWithoutLeAndWithFciAlsoWork() {
         val tag = Type4Tag(Ndef.uriMessage("https://a.b/"))
         assertContentEquals(Type4Tag.SW_OK, tag.process(hex("00 A4 04 00 07 D2760000850101")))

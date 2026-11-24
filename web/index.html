@@ -98,6 +98,12 @@
   @keyframes pulse { 50% { transform: scale(1.04); opacity: .8; } }
   @media (prefers-reduced-motion: reduce) { .show .tapart { animation: none; } }
   .show p { max-width: 34ch; }
+  .modes { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 4px; margin: 14px 0 0; }
+  .modes legend { font-size: 13px; color: var(--muted); padding: 0 4px; }
+  .modes label { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--text); margin-bottom: 8px; }
+  .modes input { width: auto; margin-top: 3px; }
+  .show details { margin-top: 10px; font-size: 13px; color: #646b78; }
+  .show summary { cursor: pointer; }
   .show .ver { margin-top: 14px; font-size: 12px; }
   .show .checks { margin-top: 10px; font-size: 13px; }
   .show .tapstatus { margin-top: 18px; padding: 10px 14px; border-radius: 10px; background: #f4f5f7; color: #16181d; font-weight: 600; }
@@ -164,6 +170,11 @@
         </div>
         <div class="status" id="status" role="status"></div>
         <p class="note" id="nfcNote"></p>
+        <fieldset id="modeBox" class="modes" hidden>
+          <legend>When someone taps your phone</legend>
+          <label><input type="radio" name="tapmode" value="contact" checked> <span><b>Save contact</b>: their phone opens Contacts with your details, no browser. Android phones; iPhones get your card link.</span></label>
+          <label><input type="radio" name="tapmode" value="link"> <span><b>Open my card page</b> in their browser. Works the same on iPhones and Android phones.</span></label>
+        </fieldset>
         <div id="pubBox" hidden style="margin-top:14px">
           <label for="pub">Tap Card web address (optional)</label>
           <input id="pub" type="url" inputmode="url" placeholder="yourname.github.io/tapcard">
@@ -197,11 +208,8 @@
   <h3>Hold your phone back to back with theirs</h3>
   <p id="tapHint">Keep both screens on. Their phone shows your card in a second or two.</p>
   <p class="tapstatus" id="tapStatus" role="status"></p>
-  <p class="checks" id="tapChecks"></p>
-  <div id="autostartBox" hidden>
-    <p class="checks">Xiaomi phones: turn on <b>Autostart</b> for Tap Card, or taps can't reach it.</p>
-    <button type="button" id="autostartBtn">Open Autostart settings</button>
-  </div>
+  <p class="checks" id="xiaomiNote" hidden>Tapping not working? Many Xiaomi phones can't send by tap: their own NFC chip answers instead of Tap Card. They can still receive. To share from a Xiaomi, stick an NFC sticker on your case (use "Write to NFC tag" on the Tap Card website) or show your QR code.</p>
+  <details><summary>Details</summary><p class="checks" id="tapChecks"></p></details>
   <button type="button" id="tapClose">Done</button>
   <p class="ver" id="tapVer"></p>
 </div>
@@ -253,6 +261,8 @@
     }
     return location.protocol === "file:" ? null : location.href.split("#")[0];
   }
+  const MODE_KEY = "tapcard.tapMode";
+  function tapMode() { let m = "contact"; try { m = localStorage.getItem(MODE_KEY) || "contact"; } catch {} return m; }
   const linkFor = (p) => { const b = publicBase(); return b ? b + "#c=" + encode(p) : null; };
   // What the QR code holds: the card link, or the contact itself when there is no link.
   const qrText = (p) => linkFor(p) || vcard(clean(p));
@@ -358,7 +368,7 @@
     $("link").textContent = link || "No web address yet, so the QR code holds your contact details directly.";
     if (link) $("openBtn").href = link;
     $("openBtn").hidden = $("copyBtn").hidden = !link;
-    if (native) native.setCard(link || "", (p.n || p.o || p.p || p.e).trim() ? vcard(clean(p)) : "");
+    if (native) native.setCard(link || "", (p.n || p.o || p.p || p.e).trim() ? vcard(clean(p)) : "", tapMode());
 
     const q = qrcode(0, "M"); q.addData(qrText(p)); q.make();
     $("qr").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
@@ -413,9 +423,11 @@
     }
     const p = read();
     if (!(p.n || p.o || p.p || p.e).trim()) { status("Add your name or phone number first.", false); return; }
-    $("tapHint").textContent = linkFor(p)
-      ? "Keep both screens on and unlocked. Their phone shows your card in a second or two. Works with iPhones and Android phones."
-      : "Keep both screens on and unlocked. Works with Android phones. To reach iPhones too, add your Tap Card web address under Share.";
+    $("tapHint").textContent = !linkFor(p)
+      ? "Keep both screens on and unlocked. Works with Android phones. To reach iPhones too, add your Tap Card web address under Share."
+      : tapMode() === "link"
+        ? "Keep both screens on and unlocked. Their phone opens your card in a second or two."
+        : "Keep both screens on and unlocked. Their phone shows your contact, ready to save.";
     $("tapView").hidden = false;
     native.enterTapMode();
     tapOpenedAt = Date.now();
@@ -439,24 +451,24 @@
     const mark = (v) => v === true ? "✓" : v === false ? "✗" : "?";
     $("tapChecks").textContent = `Checks: NFC on ${mark(st.nfcOn)} · taps go to Tap Card ${mark(st.routed)} · service started: ${st.serviceStarts ?? "?"} · commands received: ${st.commands ?? "?"}`;
     // Xiaomi blocks background starts unless Autostart is on, so the tag service never runs.
-    $("autostartBox").hidden = !(/xiaomi|redmi|poco/.test(st.maker || "") && !st.commands);
+    $("xiaomiNote").hidden = !(/xiaomi|redmi|poco/.test(st.maker || "") && !st.commands);
     if (!st.nfcOn) return say("NFC is off on this phone. Turn it on in Settings.", "warn");
     if (st.routed === false) return say("Another app on this phone answers NFC tag reads, so taps don't reach Tap Card.", "warn");
     if (st.kind === "none") return say("No card saved yet. Press Done and fill in your details.", "warn");
-    if (!tapped) return say(st.kind === "link"
-      ? "Ready: a tap sends the link to your card."
-      : "Ready: a tap sends your contact (Android phones only).");
+    if (!tapped) return say({
+      "link": "Ready: a tap opens your card page on their phone.",
+      "contact+link": "Ready: a tap shows your contact on their phone, ready to save.",
+    }[st.kind] || "Ready: a tap sends your contact (Android phones only).");
     switch (st.stage) {
-      case "MESSAGE_READ": return say(st.kind === "link"
-        ? "✓ Their phone read your card."
-        : "✓ Their phone read your contact. (iPhones ignore contacts: add your web address to reach them.)", "ok");
+      case "MESSAGE_READ": return say(st.kind === "contact"
+        ? "✓ Their phone read your contact. (iPhones ignore contacts: add your web address to reach them.)"
+        : "✓ Their phone read your card.", "ok");
       case "NDEF_SELECTED": return say("Their phone started reading but the phones moved apart. Hold them still for 2 seconds.", "warn");
       case "APP_SELECTED": return say("Their phone found yours but didn't read the card. Hold still for 2 seconds and try again.", "warn");
       case "NO_CARD": return say("Their phone connected, but no card was saved. Press Done and fill in your details.", "warn");
     }
   }
   $("tapClose").addEventListener("click", closeTap);
-  $("autostartBtn").addEventListener("click", () => native?.openAutostartSettings?.());
   // Android back button: close an open full-screen view instead of leaving the app.
   window.tapcardBack = () => {
     if (!$("tapView").hidden) { closeTap(); return true; }
@@ -468,6 +480,11 @@
     $("nfcBtn").hidden = $("qrBtn").hidden = true; // tag writing and file downloads are for the website
     $("vcfBtn").textContent = "Save to my contacts";
     $("pubBox").hidden = false;
+    $("modeBox").hidden = false;
+    for (const r of document.querySelectorAll('input[name="tapmode"]')) {
+      r.checked = r.value === tapMode();
+      r.addEventListener("change", () => { try { localStorage.setItem(MODE_KEY, r.value); } catch {} update(); });
+    }
     // Fill in this build's website the first time, so taps send a link that iPhones open too.
     let savedPub = null; try { savedPub = localStorage.getItem(PUB_KEY); } catch {}
     if (savedPub == null && native.defaultWebAddress) {
