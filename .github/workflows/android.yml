@@ -38,10 +38,14 @@ jobs:
             echo "::warning::No TAPCARD_KEY_PASSWORD secret: signing with a temporary key"
             exit 0
           fi
+          # The key tool only accepts ASCII passwords, so use a SHA-256 hash of the secret: any
+          # password works (accents, symbols), and it is just as hard to guess.
+          KEYSTORE_PASSWORD=$(printf '%s' "$TAPCARD_KEY_PASSWORD" | sha256sum | cut -d' ' -f1)
+          echo "::add-mask::$KEYSTORE_PASSWORD"
           if [ ! -f tapcard-release.keystore ]; then
             keytool -genkeypair -keystore tapcard-release.keystore -storetype PKCS12 \
               -alias tapcard -keyalg RSA -keysize 3072 -validity 10000 \
-              -storepass "$TAPCARD_KEY_PASSWORD" -keypass "$TAPCARD_KEY_PASSWORD" -dname "CN=Tap Card"
+              -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" -dname "CN=Tap Card"
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add tapcard-release.keystore
@@ -52,7 +56,12 @@ jobs:
       - name: Build the app
         env:
           TAPCARD_KEY_PASSWORD: ${{ secrets.TAPCARD_KEY_PASSWORD }}
-        run: ./gradlew assembleDebug
+        run: |
+          if [ -n "$TAPCARD_KEY_PASSWORD" ]; then
+            export TAPCARD_KEYSTORE_PASSWORD=$(printf '%s' "$TAPCARD_KEY_PASSWORD" | sha256sum | cut -d' ' -f1)
+            echo "::add-mask::$TAPCARD_KEYSTORE_PASSWORD"
+          fi
+          ./gradlew assembleDebug
 
       - name: Upload the .apk
         uses: actions/upload-artifact@v4
