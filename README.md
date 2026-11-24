@@ -22,7 +22,7 @@ Share your business card by tapping phones, an NFC sticker, or a QR code.
 
 ## Get the Android app
 
-- **GitHub:** every push runs *Build Android app*. Open the run under **Actions** and download `tapcard-android` (a zip containing `app-debug.apk`). Copy it to your phone and open it. Android asks you to allow installs from that app once.
+- **Download:** on your Android phone open `https://github.com/<user>/<repo>/releases/latest/download/tapcard.apk`, then open the file. Android asks you to allow installs from your browser once. Every push to `main` rebuilds it.
 - **Android Studio:** open the `android/` folder and press Run.
 
 Then in the app: fill in your details, enter your web address under *Share*, and press **Tap phones**.
