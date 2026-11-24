@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Neutral system bars; the page then sets them to match the screen (see setSystemBars). -->
     <style name="Theme.TapCard" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:colorPrimary">#1F6FEB</item>
-        <item name="android:colorAccent">#1F6FEB</item>
-        <item name="android:statusBarColor">#F4F5F7</item>
+        <item name="android:colorPrimary">@color/background</item>
+        <item name="android:colorPrimaryDark">@color/background</item>
+        <item name="android:colorAccent">#0E1016</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
         <item name="android:windowBackground">@color/background</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
     </style>
-    <color name="background">#F4F5F7</color>
+    <color name="background">#E9EAEF</color>
 </resources>

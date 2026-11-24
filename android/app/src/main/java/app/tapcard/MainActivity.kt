@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
 import android.nfc.NfcAdapter
 import android.nfc.cardemulation.CardEmulation
@@ -15,7 +16,9 @@ import android.os.Bundle
 import android.provider.ContactsContract
 import android.provider.ContactsContract.Intents.Insert
 import android.provider.Settings
+import android.view.View
 import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
@@ -196,6 +199,35 @@ class MainActivity : Activity() {
                     }
                 }
                 .toString()
+        }
+
+        /**
+         * Colours the status bar and navigation bar (and the strips behind them) to match the
+         * screen, with dark or light icons. The page calls this whenever its background changes.
+         */
+        @JavascriptInterface
+        fun setSystemBars(color: String, dark: Boolean) = runOnUiThread {
+            val c = runCatching { Color.parseColor(color) }.getOrNull() ?: return@runOnUiThread
+            window.decorView.setBackgroundColor(c)
+            web.setBackgroundColor(c)
+            @Suppress("DEPRECATION")
+            run { window.statusBarColor = c; window.navigationBarColor = c }
+            if (Build.VERSION.SDK_INT >= 29) {
+                window.isNavigationBarContrastEnforced = false
+                window.isStatusBarContrastEnforced = false
+            }
+            if (Build.VERSION.SDK_INT >= 30) {
+                val light = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                window.insetsController?.setSystemBarsAppearance(if (dark) 0 else light, light)
+            } else {
+                @Suppress("DEPRECATION")
+                var flags = window.decorView.systemUiVisibility
+                @Suppress("DEPRECATION")
+                val light = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (Build.VERSION.SDK_INT >= 26) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
+                flags = if (dark) flags and light.inv() else flags or light
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility = flags
+            }
         }
 
         @JavascriptInterface

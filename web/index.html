@@ -4,8 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tap Card</title>
-<meta name="theme-color" content="#f2f3f7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0b0c10" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#e9eaef" id="themeColor">
+<script>
+  // Apply the saved Light / Dark / Auto choice before the page draws, so it never flashes.
+  try { var t = localStorage.getItem("tapcard.theme");
+    var d = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme = d ? "dark" : "light"; } catch (e) {}
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -15,22 +20,27 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
   :root {
-    --bg: #f2f3f7; --surface: #ffffff; --surface-2: #f6f7fa; --text: #0e1016; --muted: #6b7080;
+    --bg: #e9eaef; --surface: #f7f7f9; --surface-2: #eff0f3; --text: #0e1016; --muted: #6b7080;
     --line: rgba(14, 16, 22, .08); --brand: #3b5bfd; --on-brand: #ffffff;
     --ok: #12804a; --warn: #9a6700;
     --shadow: 0 1px 2px rgba(14,16,22,.04), 0 8px 24px -12px rgba(14,16,22,.12);
     --r-lg: 24px; --r-md: 18px; --r-sm: 12px;
     color-scheme: light;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
+  :root[data-theme="dark"] {
       --bg: #0b0c10; --surface: #15171d; --surface-2: #1b1e25; --text: #f1f2f6; --muted: #9a9fae;
       --line: rgba(255,255,255,.08); --brand: #8098ff; --on-brand: #0b0c10;
       --ok: #4ade80; --warn: #f2c14e;
       --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px -16px rgba(0,0,0,.6);
       color-scheme: dark;
-    }
   }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme]) {
+      --bg: #0b0c10; --surface: #15171d; --surface-2: #1b1e25; --text: #f1f2f6; --muted: #9a9fae;
+      --line: rgba(255,255,255,.08); --brand: #8098ff; --on-brand: #0b0c10;
+      --ok: #4ade80; --warn: #f2c14e;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px -16px rgba(0,0,0,.6);
+      color-scheme: dark;
+  } }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin: 0; background: var(--bg); color: var(--text);
     font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
@@ -60,7 +70,7 @@
     background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.22) 45%, transparent 60%);
     transform: translateX(-100%); animation: sheen 2.4s ease .3s 1 forwards; }
   @keyframes sheen { to { transform: translateX(100%); } }
-  @media (prefers-color-scheme: dark) { .hero { box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 28px 50px -24px rgba(0,0,0,.8); } }
+  :root[data-theme="dark"] .hero { box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 28px 50px -24px rgba(0,0,0,.8); }
   .hero .row { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
   .hero .mono { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; overflow: hidden;
     font-weight: 750; font-size: 19px; letter-spacing: .02em;
@@ -76,10 +86,11 @@
   .hero.empty .name { opacity: .6; }
 
   /* Customer language switch */
-  .langs { display: flex; align-items: center; gap: 6px; padding: 5px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
-  .langs span { font-size: 12.5px; font-weight: 650; color: var(--muted); padding: 0 8px 0 10px; white-space: nowrap; }
-  .langs button { flex: 1; border: 0; border-radius: 999px; padding: 10px 8px; font-weight: 700; font-size: 14.5px; background: transparent; color: var(--muted); transition: background .2s, color .2s; white-space: nowrap; }
-  .langs button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+  .langs, .themes { display: flex; align-items: center; gap: 6px; padding: 5px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .themes { box-shadow: none; }
+  .langs span, .themes span { font-size: 12.5px; font-weight: 650; color: var(--muted); padding: 0 8px 0 10px; white-space: nowrap; }
+  .langs button, .themes button { flex: 1; border: 0; border-radius: 999px; padding: 10px 8px; font-weight: 700; font-size: 14.5px; background: transparent; color: var(--muted); transition: background .2s, color .2s; white-space: nowrap; }
+  .langs button[aria-pressed="true"], .themes button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
   @media (max-width: 370px) { .langs span { display: none; } }
 
   /* Big action tiles */
@@ -369,6 +380,15 @@
         </section>
       </form>
 
+      <section class="group">
+        <h2>Appearance</h2>
+        <div class="themes" role="group" aria-label="Appearance">
+          <button type="button" data-theme="auto">Auto</button>
+          <button type="button" data-theme="light">Light</button>
+          <button type="button" data-theme="dark">Dark</button>
+        </div>
+      </section>
+
       <section class="group" id="tapSettings">
         <h2>Tap settings</h2>
         <div class="list">
@@ -439,6 +459,29 @@
   const $ = (id) => document.getElementById(id);
   // Set when running inside the Android app (see android/app/.../MainActivity.kt).
   const native = window.TapCardNative || null;
+
+  // ---------- appearance: Auto / Light / Dark ----------
+  const THEME_KEY = "tapcard.theme";
+  const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+  function themeChoice() { let t = "auto"; try { t = localStorage.getItem(THEME_KEY) || "auto"; } catch {} return t; }
+  // Colours the browser / Android bars to match what is on screen.
+  function paintBars(color, dark) {
+    $("themeColor").setAttribute("content", color);
+    try { native?.setSystemBars?.(color, dark); } catch {}
+  }
+  function applyTheme() {
+    const t = themeChoice();
+    const dark = t === "dark" || (t === "auto" && darkQuery.matches);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    for (const b of document.querySelectorAll(".themes button")) b.setAttribute("aria-pressed", String(b.dataset.theme === t));
+    const fullScreen = !$("show").hidden || !$("tapView").hidden;
+    if (fullScreen) paintBars("#0b0c10", true);
+    else paintBars(getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || (dark ? "#0b0c10" : "#e9eaef"), dark);
+  }
+  darkQuery.addEventListener?.("change", applyTheme);
+  for (const b of document.querySelectorAll(".themes button"))
+    b.addEventListener("click", () => { try { localStorage.setItem(THEME_KEY, b.dataset.theme); } catch {} applyTheme(); });
+  applyTheme();
 
   if ("serviceWorker" in navigator && location.protocol !== "file:" && !native) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
@@ -681,9 +724,10 @@
     $("showHint").textContent = W(p.l).scan;
     $("show").style.setProperty("--cc", safeColor(p.c));
     $("show").hidden = false;
+    applyTheme();
     try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
   }
-  function closeShow() { $("show").hidden = true; try { wakeLock?.release(); } catch {} wakeLock = null; }
+  function closeShow() { $("show").hidden = true; applyTheme(); try { wakeLock?.release(); } catch {} wakeLock = null; }
   $("showBtn").addEventListener("click", openShow);
   $("showClose").addEventListener("click", closeShow);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeShow(); closeTap(); } });
@@ -703,6 +747,7 @@
         : "Keep both screens on and unlocked. Their phone shows your contact, ready to save.";
     $("tapView").style.setProperty("--cc", safeColor(p.c));
     $("tapView").hidden = false;
+    applyTheme();
     native.enterTapMode();
     tapOpenedAt = Date.now();
     showTapStatus(); tapTimer = setInterval(showTapStatus, 700);
@@ -710,6 +755,7 @@
   function closeTap() {
     if ($("tapView").hidden) return;
     $("tapView").hidden = true;
+    applyTheme();
     clearInterval(tapTimer);
     native?.exitTapMode();
   }

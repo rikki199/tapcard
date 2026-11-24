@@ -11,8 +11,8 @@ android {
         applicationId = "app.tapcard"
         minSdk = 24
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.7"
+        versionCode = 9
+        versionName = "1.8"
     }
 
     // Sign with the app's own permanent key when it's available, so new versions install as
