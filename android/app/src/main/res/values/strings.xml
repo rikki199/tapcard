@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">Tap Card</string>
     <string name="hce_description">Tap Card: share your contact card by tapping phones</string>
+    <!-- Where the Tap Card website is hosted (GitHub Pages). A tap sends a link here. -->
+    <string name="default_web_address" translatable="false">rikki199.github.io/tapcard/</string>
 </resources>

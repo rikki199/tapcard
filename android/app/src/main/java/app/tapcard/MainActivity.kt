@@ -89,12 +89,11 @@ class MainActivity : Activity() {
     }
 
     /**
-     * While tap mode is on, Android sends taps to Tap Card first, even if another app
-     * also answers NFC tag reads, and the screen stays on.
-     *
-     * Don't call enableReaderMode() here: Android stops routing taps to card-emulation
-     * services (CardHceService) while any app has reader mode on, so the phone could no
-     * longer be read as a tag.
+     * While tap mode is on:
+     *  - Android sends taps to Tap Card first, even if another app also answers NFC tag reads;
+     *  - this phone stops *reading* NFC (polling) and only *answers* as a tag. Otherwise, with two
+     *    Android phones, both try to read each other and this phone may read theirs instead.
+     *  - the screen stays on.
      */
     private fun startListening() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -103,11 +102,26 @@ class MainActivity : Activity() {
             CardEmulation.getInstance(adapter)
                 .setPreferredService(this, ComponentName(this, CardHceService::class.java))
         }
+        if (Build.VERSION.SDK_INT >= 35) {
+            // Android 15+: the official switch for "don't read tags, keep answering as one".
+            runCatching { adapter.setDiscoveryTechnology(this, NfcAdapter.FLAG_READER_DISABLE, NfcAdapter.FLAG_LISTEN_KEEP) }
+        } else {
+            // Older Android: reader mode with flags set but no technology flags turns off polling
+            // while keeping card emulation routed to this app.
+            runCatching {
+                adapter.enableReaderMode(
+                    this, { /* never called: no technologies are polled */ },
+                    NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK or NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS, null
+                )
+            }
+        }
     }
 
     private fun stopListening() {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val adapter = nfc ?: return
+        if (Build.VERSION.SDK_INT >= 35) runCatching { adapter.resetDiscoveryTechnology(this) }
+        else runCatching { adapter.disableReaderMode(this) }
         runCatching { CardEmulation.getInstance(adapter).unsetPreferredService(this) }
     }
 
@@ -165,6 +179,14 @@ class MainActivity : Activity() {
                 .put("nfcOn", nfc?.isEnabled == true)
                 .toString()
         }
+
+        @JavascriptInterface
+        fun appVersion(): String =
+            runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: ""
+
+        /** The Tap Card website for this build, used until the person sets their own. */
+        @JavascriptInterface
+        fun defaultWebAddress(): String = getString(R.string.default_web_address)
 
         @JavascriptInterface
         fun enterTapMode() = runOnUiThread { tapMode = true; startListening() }

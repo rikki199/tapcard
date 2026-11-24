@@ -98,6 +98,7 @@
   @keyframes pulse { 50% { transform: scale(1.04); opacity: .8; } }
   @media (prefers-reduced-motion: reduce) { .show .tapart { animation: none; } }
   .show p { max-width: 34ch; }
+  .show .ver { margin-top: 14px; font-size: 12px; }
   .show .tapstatus { margin-top: 18px; padding: 10px 14px; border-radius: 10px; background: #f4f5f7; color: #16181d; font-weight: 600; }
   .show .tapstatus.ok { background: #dafbe1; color: #1a7f37; }
   .show .tapstatus.warn { background: #fff8c5; color: #7d4e00; }
@@ -167,6 +168,7 @@
           <input id="pub" type="url" inputmode="url" placeholder="yourname.github.io/tapcard">
           <p class="note">Where your Tap Card website is hosted. With it, a tap opens your card on iPhones too. Without it, a tap sends your contact straight to Android phones only, and the QR code holds your details directly.</p>
         </div>
+        <p class="note" id="appVer" hidden></p>
         <p class="note" id="hostNote" hidden>This page is opened from a local file, so the link only works on this device. Put it on a website (for example GitHub Pages) for the link to work on other phones.</p>
       </section>
 
@@ -195,6 +197,7 @@
   <p id="tapHint">Keep both screens on. Their phone shows your card in a second or two.</p>
   <p class="tapstatus" id="tapStatus" role="status"></p>
   <button type="button" id="tapClose">Done</button>
+  <p class="ver" id="tapVer"></p>
 </div>
 
 <script src="qrcode.js"></script>
@@ -238,6 +241,8 @@
       let u = ""; try { u = (localStorage.getItem(PUB_KEY) || "").trim(); } catch {}
       if (!u) return null;
       u = (/^https?:\/\//i.test(u) ? u : "https://" + u).split("#")[0];
+      // "site.io/tapcard" -> "site.io/tapcard/": avoids a redirect on every tap
+      if (!/\/$/.test(u) && !/\.[a-z0-9]+$/i.test(u.replace(/^https?:\/\/[^/]+/i, ""))) u += "/";
       return u;
     }
     return location.protocol === "file:" ? null : location.href.split("#")[0];
@@ -451,7 +456,14 @@
     $("nfcBtn").hidden = $("qrBtn").hidden = true; // tag writing and file downloads are for the website
     $("vcfBtn").textContent = "Save to my contacts";
     $("pubBox").hidden = false;
-    try { $("pub").value = localStorage.getItem(PUB_KEY) || ""; } catch {}
+    // Fill in this build's website the first time, so taps send a link that iPhones open too.
+    let savedPub = null; try { savedPub = localStorage.getItem(PUB_KEY); } catch {}
+    if (savedPub == null && native.defaultWebAddress) {
+      savedPub = native.defaultWebAddress(); try { localStorage.setItem(PUB_KEY, savedPub); } catch {}
+    }
+    $("pub").value = savedPub || "";
+    const ver = native.appVersion ? native.appVersion() : "";
+    if (ver) { $("tapVer").textContent = "Tap Card " + ver; $("appVer").textContent = "Tap Card for Android " + ver; $("appVer").hidden = false; }
     $("pub").addEventListener("input", () => { try { localStorage.setItem(PUB_KEY, $("pub").value); } catch {} update(); });
     if (native.hceSupported()) {
       $("tapBtn").hidden = false;
