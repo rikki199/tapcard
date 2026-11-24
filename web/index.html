@@ -98,6 +98,9 @@
   @keyframes pulse { 50% { transform: scale(1.04); opacity: .8; } }
   @media (prefers-reduced-motion: reduce) { .show .tapart { animation: none; } }
   .show p { max-width: 34ch; }
+  .show .tapstatus { margin-top: 18px; padding: 10px 14px; border-radius: 10px; background: #f4f5f7; color: #16181d; font-weight: 600; }
+  .show .tapstatus.ok { background: #dafbe1; color: #1a7f37; }
+  .show .tapstatus.warn { background: #fff8c5; color: #7d4e00; }
   .show button { margin-top: 24px; background: #fff; color: #16181d; border-color: #dde1e7; }
   [hidden] { display: none !important; }
 </style>
@@ -190,6 +193,7 @@
   </svg>
   <h3>Hold your phone back to back with theirs</h3>
   <p id="tapHint">Keep both screens on. Their phone shows your card in a second or two.</p>
+  <p class="tapstatus" id="tapStatus" role="status"></p>
   <button type="button" id="tapClose">Done</button>
 </div>
 
@@ -403,11 +407,37 @@
       : "Keep both screens on and unlocked. Works with Android phones. To reach iPhones too, add your Tap Card web address under Share.";
     $("tapView").hidden = false;
     native.enterTapMode();
+    tapOpenedAt = Date.now();
+    showTapStatus(); tapTimer = setInterval(showTapStatus, 700);
   }
   function closeTap() {
     if ($("tapView").hidden) return;
     $("tapView").hidden = true;
+    clearInterval(tapTimer);
     native?.exitTapMode();
+  }
+
+  // Live status on the tap screen: what a tap sends, and how far the last tap got.
+  let tapOpenedAt = 0, tapTimer = 0;
+  function showTapStatus() {
+    let st; try { st = JSON.parse(native.tapStatus()); } catch { return; }
+    const el = $("tapStatus");
+    const say = (msg, cls = "") => { el.textContent = msg; el.className = "tapstatus " + cls; };
+    const sinceOpen = (Date.now() - tapOpenedAt) / 1000;
+    const tapped = st.secondsAgo >= 0 && st.secondsAgo <= sinceOpen + 1;
+    if (!st.nfcOn) return say("NFC is off on this phone. Turn it on in Settings.", "warn");
+    if (st.kind === "none") return say("No card saved yet. Press Done and fill in your details.", "warn");
+    if (!tapped) return say(st.kind === "link"
+      ? "Ready: a tap sends the link to your card."
+      : "Ready: a tap sends your contact (Android phones only).");
+    switch (st.stage) {
+      case "MESSAGE_READ": return say(st.kind === "link"
+        ? "✓ Their phone read your card."
+        : "✓ Their phone read your contact. (iPhones ignore contacts: add your web address to reach them.)", "ok");
+      case "NDEF_SELECTED": return say("Their phone started reading but the phones moved apart. Hold them still for 2 seconds.", "warn");
+      case "APP_SELECTED": return say("Their phone found yours but didn't read the card. Hold still for 2 seconds and try again.", "warn");
+      case "NO_CARD": return say("Their phone connected, but no card was saved. Press Done and fill in your details.", "warn");
+    }
   }
   $("tapClose").addEventListener("click", closeTap);
   // Android back button: close an open full-screen view instead of leaving the app.

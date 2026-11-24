@@ -11,8 +11,13 @@ class CardHceService : HostApduService() {
 
     override fun processCommandApdu(commandApdu: ByteArray, extras: Bundle?): ByteArray {
         val current = tag ?: CardStore.message(this)?.let { Type4Tag(it) }?.also { tag = it }
-            ?: return Type4Tag.SW_FILE_NOT_FOUND // no card set up yet
-        return current.process(commandApdu)
+        if (current == null) { // no card set up yet
+            TapLog.record("NO_CARD")
+            return Type4Tag.SW_FILE_NOT_FOUND
+        }
+        val response = current.process(commandApdu)
+        TapLog.record(current.progress.name)
+        return response
     }
 
     override fun onDeactivated(reason: Int) {

@@ -69,7 +69,17 @@ class Type4TagTest {
     @Test fun phoneReadsBackTheExactUrlMessage() {
         val url = "https://someone.github.io/tapcard/#c=" + "x".repeat(280) // a realistic, multi-chunk card link
         val msg = Ndef.uriMessage(url)
-        assertContentEquals(msg, readLikeAPhone(Type4Tag(msg)))
+        val tag = Type4Tag(msg)
+        assertEquals(Type4Tag.Progress.NOTHING, tag.progress)
+        assertContentEquals(msg, readLikeAPhone(tag))
+        assertEquals(Type4Tag.Progress.MESSAGE_READ, tag.progress)
+    }
+
+    @Test fun progressStopsWhereTheReaderStopped() {
+        val tag = Type4Tag(Ndef.uriMessage("https://a.b/"))
+        tag.process(selectApp); assertEquals(Type4Tag.Progress.APP_SELECTED, tag.progress)
+        tag.process(selectCc); tag.process(read(0, 15)); assertEquals(Type4Tag.Progress.APP_SELECTED, tag.progress)
+        tag.process(selectNdef); tag.process(read(0, 2)); assertEquals(Type4Tag.Progress.NDEF_SELECTED, tag.progress)
     }
 
     @Test fun phoneReadsBackALargeVcard() {

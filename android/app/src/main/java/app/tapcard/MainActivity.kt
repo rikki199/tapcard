@@ -148,6 +148,24 @@ class MainActivity : Activity() {
             CardStore.update(this@MainActivity, message)
         }
 
+        /** What a tap sends right now and what happened on the last tap, as JSON for the page. */
+        @JavascriptInterface
+        fun tapStatus(): String {
+            val msg = CardStore.message(this@MainActivity)
+            val kind = when {
+                msg == null -> "none"
+                msg.size > 3 && (msg[0].toInt() and 0x07) == 0x01 && msg[3] == 'U'.code.toByte() -> "link"
+                else -> "contact"
+            }
+            return JSONObject()
+                .put("kind", kind)
+                .put("bytes", msg?.size ?: 0)
+                .put("stage", TapLog.stage)
+                .put("secondsAgo", TapLog.secondsAgo())
+                .put("nfcOn", nfc?.isEnabled == true)
+                .toString()
+        }
+
         @JavascriptInterface
         fun enterTapMode() = runOnUiThread { tapMode = true; startListening() }
 

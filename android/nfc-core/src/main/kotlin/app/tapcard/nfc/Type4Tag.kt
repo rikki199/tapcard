@@ -18,6 +18,11 @@ class Type4Tag(ndefMessage: ByteArray) {
     private var appSelected = false
     private var selected: ByteArray? = null
 
+    /** How far the reading phone got. Useful to tell someone why a tap didn't work. */
+    enum class Progress { NOTHING, APP_SELECTED, NDEF_SELECTED, MESSAGE_READ }
+    var progress = Progress.NOTHING
+        private set
+
     init {
         require(ndefMessage.size <= MAX_NDEF_SIZE - 2) { "NDEF message too large: ${ndefMessage.size} bytes" }
         ndefFile = byteArrayOf((ndefMessage.size ushr 8).toByte(), ndefMessage.size.toByte()) + ndefMessage
@@ -57,7 +62,9 @@ class Type4Tag(ndefMessage: ByteArray) {
         return when (p1) {
             0x04 -> { // select by application id
                 if (data.contentEquals(NDEF_AID)) {
-                    appSelected = true; selected = null; SW_OK
+                    appSelected = true; selected = null
+                    if (progress < Progress.APP_SELECTED) progress = Progress.APP_SELECTED
+                    SW_OK
                 } else SW_FILE_NOT_FOUND
             }
             0x00 -> { // select by file id
@@ -67,6 +74,7 @@ class Type4Tag(ndefMessage: ByteArray) {
                     data.contentEquals(NDEF_FILE_ID) -> ndefFile
                     else -> return SW_FILE_NOT_FOUND
                 }
+                if (selected === ndefFile && progress < Progress.NDEF_SELECTED) progress = Progress.NDEF_SELECTED
                 SW_OK
             }
             else -> SW_WRONG_P1P2
@@ -79,6 +87,7 @@ class Type4Tag(ndefMessage: ByteArray) {
         // Le is the last byte for a short APDU; 0 means 256.
         val le = if (apdu.size >= 5) (apdu[apdu.size - 1].toInt() and 0xFF).let { if (it == 0) 256 else it } else 256
         val end = minOf(file.size, offset + le)
+        if (file === ndefFile && end == file.size && offset > 0) progress = Progress.MESSAGE_READ
         return file.copyOfRange(offset, end) + SW_OK
     }
 
