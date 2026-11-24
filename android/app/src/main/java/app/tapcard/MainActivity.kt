@@ -89,26 +89,26 @@ class MainActivity : Activity() {
     }
 
     /**
-     * While tap mode is on, this phone only listens (acts as a tag) and stops reading tags itself,
-     * so two Android phones don't both try to be the reader.
+     * While tap mode is on, Android sends taps to Tap Card first, even if another app
+     * also answers NFC tag reads, and the screen stays on.
+     *
+     * Don't call enableReaderMode() here: Android stops routing taps to card-emulation
+     * services (CardHceService) while any app has reader mode on, so the phone could no
+     * longer be read as a tag.
      */
     private fun startListening() {
-        val adapter = nfc ?: return
-        CardEmulation.getInstance(adapter)
-            .setPreferredService(this, ComponentName(this, CardHceService::class.java))
-        // Reader mode with no technology flags turns off this phone's tag polling; card emulation stays on.
-        adapter.enableReaderMode(
-            this, { /* ignore */ },
-            NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK or NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS, null
-        )
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        val adapter = nfc ?: return
+        runCatching {
+            CardEmulation.getInstance(adapter)
+                .setPreferredService(this, ComponentName(this, CardHceService::class.java))
+        }
     }
 
     private fun stopListening() {
-        val adapter = nfc ?: return
-        runCatching { adapter.disableReaderMode(this) }
-        runCatching { CardEmulation.getInstance(adapter).unsetPreferredService(this) }
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        val adapter = nfc ?: return
+        runCatching { CardEmulation.getInstance(adapter).unsetPreferredService(this) }
     }
 
     private fun openExternal(uri: Uri) {
