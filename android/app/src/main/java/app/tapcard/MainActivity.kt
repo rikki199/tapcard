@@ -177,6 +177,19 @@ class MainActivity : Activity() {
                 .put("stage", TapLog.stage)
                 .put("secondsAgo", TapLog.secondsAgo())
                 .put("nfcOn", nfc?.isEnabled == true)
+                .put("commands", TapLog.commands)
+                .apply {
+                    // Self-check: has Android registered Tap Card for tag reads, and does it get them?
+                    val adapter = nfc ?: return@apply
+                    runCatching {
+                        val ce = CardEmulation.getInstance(adapter)
+                        val me = ComponentName(this@MainActivity, CardHceService::class.java)
+                        val aid = app.tapcard.nfc.Type4Tag.NDEF_AID_HEX
+                        put("registered", ce.getAidsForService(me, CardEmulation.CATEGORY_OTHER)
+                            ?.any { it.equals(aid, ignoreCase = true) } == true)
+                        put("routed", ce.isDefaultServiceForAid(me, aid))
+                    }
+                }
                 .toString()
         }
 
