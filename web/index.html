@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tap Card</title>
+<meta name="theme-color" content="#1f6feb">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tap Card">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root {
+    --bg: #f4f5f7; --surface: #ffffff; --text: #16181d; --muted: #646b78;
+    --line: #dde1e7; --accent: #1f6feb; --on-accent: #ffffff; --ok: #1a7f37; --warn: #9a6700;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --surface: #181b21; --text: #eceef2; --muted: #9aa2b1; --line: #2a2f38; --ok: #3fb950; --warn: #d29922; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
+  @media (max-width: 859px) { .grid.ready .sticky { order: -1; } }
+  @media (min-width: 860px) { .grid { grid-template-columns: 1.1fr 1fr; align-items: start; } .sticky { position: sticky; top: 16px; } }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  .panel h2 { font-size: 15px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .fields { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+  .fields .full { grid-column: 1 / -1; }
+  @media (max-width: 520px) { .fields { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  input, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg); color: var(--text); font: inherit; }
+  input[type=color] { padding: 2px; height: 42px; }
+  textarea { resize: vertical; min-height: 64px; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  button, .btn { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--text);
+    padding: 10px 14px; border-radius: 10px; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px; }
+  button.primary, .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .qr { display: grid; place-items: center; background: #fff; border-radius: 12px; padding: 14px; }
+  .qr svg { width: 100%; max-width: 240px; height: auto; display: block; }
+  .link { font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; color: var(--muted);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-top: 12px; }
+  .meter { font-size: 13px; margin-top: 6px; }
+  .meter.ok { color: var(--ok); } .meter.warn { color: var(--warn); }
+  .note { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+  .status { font-size: 14px; margin-top: 10px; min-height: 1.4em; }
+
+  /* Profile card */
+  .card { max-width: 420px; margin: 0 auto; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 20px; overflow: hidden; }
+  .card .banner { height: 96px; background: var(--card-accent, var(--accent)); }
+  .card .body { padding: 0 20px 22px; text-align: center; }
+  .avatar { width: 104px; height: 104px; border-radius: 50%; margin: -52px auto 10px; border: 4px solid var(--surface);
+    background: var(--card-accent, var(--accent)); color: #fff; display: grid; place-items: center;
+    font-size: 36px; font-weight: 700; overflow: hidden; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .card h3 { font-size: 22px; margin: 0; }
+  .card .role { color: var(--muted); margin: 2px 0 0; }
+  .card .bio { margin: 12px 0 0; font-size: 15px; }
+  .card .save { width: 100%; justify-content: center; margin-top: 16px; padding: 13px; font-size: 16px;
+    background: var(--card-accent, var(--accent)); border-color: var(--card-accent, var(--accent)); color: #fff; }
+  .rows { list-style: none; padding: 0; margin: 16px 0 0; text-align: left; }
+  .rows li a, .rows li span { display: flex; align-items: center; gap: 12px; padding: 11px 4px; color: var(--text);
+    text-decoration: none; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+  .rows .ic { width: 32px; height: 32px; flex: none; border-radius: 8px; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--card-accent, var(--accent)) 15%, transparent); color: var(--card-accent, var(--accent));
+    font-size: 15px; font-weight: 700; line-height: 1; }
+  .empty { color: var(--muted); text-align: center; padding: 30px 0; }
+  .viewer { padding-top: 28px; }
+  .foot { text-align: center; margin-top: 18px; font-size: 13px; }
+  .foot a { color: var(--muted); }
+  /* Install banner */
+  .install { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 12px 14px; margin: 0 0 20px; }
+  .install img { width: 40px; height: 40px; border-radius: 10px; flex: none; }
+  .install p { margin: 0; flex: 1; font-size: 14px; }
+  .install .x { border: 0; background: none; padding: 6px 8px; color: var(--muted); font-size: 20px; line-height: 1; }
+
+  /* Full-screen QR to hold up to someone */
+  .show { position: fixed; inset: 0; z-index: 10; background: #fff; color: #16181d; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 24px 16px calc(24px + env(safe-area-inset-bottom)); text-align: center; }
+  .show .qrbig { width: min(82vw, 62vh, 460px); }
+  .show .qrbig svg { width: 100%; height: auto; display: block; }
+  .show h3 { margin: 18px 0 2px; font-size: 22px; }
+  .show p { margin: 0; color: #646b78; }
+  .show .tapart { width: min(60vw, 240px); height: auto; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform: scale(1.04); opacity: .8; } }
+  @media (prefers-reduced-motion: reduce) { .show .tapart { animation: none; } }
+  .show p { max-width: 34ch; }
+  .show button { margin-top: 24px; background: #fff; color: #16181d; border-color: #dde1e7; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ===== Viewer: what people see after tapping / scanning ===== -->
+<main id="viewer" class="wrap viewer" hidden>
+  <div id="viewerCard"></div>
+  <p class="foot"><a href="./">Make your own card</a></p>
+</main>
+
+<!-- ===== Editor ===== -->
+<main id="editor" class="wrap" hidden>
+  <h1>Tap Card</h1>
+  <p class="sub">Fill in your details, then share them by NFC tag or QR code. Everything stays in your link; nothing is uploaded.</p>
+
+  <div class="install" id="install" hidden>
+    <img src="icons/icon-192.png" alt="">
+    <p id="installText">Install Tap Card on your home screen so your card is one tap away, even offline.</p>
+    <button class="primary" id="installBtn" type="button">Install</button>
+    <button class="x" id="installClose" type="button" aria-label="Dismiss">×</button>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Your details</h2>
+      <form id="form" class="fields" autocomplete="on" onsubmit="return false">
+        <div class="full"><label for="n">Full name</label><input id="n" name="n" autocomplete="name" placeholder="Jane Doe"></div>
+        <div><label for="t">Job title</label><input id="t" name="t" autocomplete="organization-title" placeholder="Sales Manager"></div>
+        <div><label for="o">Company</label><input id="o" name="o" autocomplete="organization" placeholder="Acme Ltd"></div>
+        <div><label for="p">Phone</label><input id="p" name="p" type="tel" autocomplete="tel" placeholder="+44 7700 900123"></div>
+        <div><label for="e">Email</label><input id="e" name="e" type="email" autocomplete="email" placeholder="jane@acme.com"></div>
+        <div><label for="w">Website</label><input id="w" name="w" type="url" placeholder="acme.com"></div>
+        <div><label for="a">Address</label><input id="a" name="a" autocomplete="street-address" placeholder="London, UK"></div>
+        <div><label for="li">LinkedIn (username)</label><input id="li" name="li" placeholder="janedoe"></div>
+        <div><label for="ig">Instagram (username)</label><input id="ig" name="ig" placeholder="janedoe"></div>
+        <div class="full"><label for="b">Short bio</label><textarea id="b" name="b" maxlength="160" placeholder="One line about what you do"></textarea></div>
+        <div><label for="i">Photo URL (optional)</label><input id="i" name="i" type="url" placeholder="https://…/me.jpg"></div>
+        <div><label for="c">Card colour</label><input id="c" name="c" type="color" value="#1f6feb"></div>
+      </form>
+    </section>
+
+    <div class="sticky" style="display:grid;gap:20px">
+      <section class="panel">
+        <h2>Share</h2>
+        <div class="qr" id="qr" aria-label="QR code for your card"></div>
+        <div class="link" id="link"></div>
+        <div class="meter" id="meter"></div>
+        <div class="btns">
+          <button class="primary" id="tapBtn" type="button" hidden>Tap phones</button>
+          <button class="primary" id="showBtn" type="button">Show QR full screen</button>
+          <button id="shareBtn" type="button" hidden>Share…</button>
+          <button id="nfcBtn" type="button">Write to NFC tag</button>
+          <button id="copyBtn" type="button">Copy link</button>
+          <button id="qrBtn" type="button">Download QR</button>
+          <button id="vcfBtn" type="button">Download .vcf</button>
+          <a class="btn" id="openBtn" target="_blank" rel="noopener">Open card</a>
+        </div>
+        <div class="status" id="status" role="status"></div>
+        <p class="note" id="nfcNote"></p>
+        <div id="pubBox" hidden style="margin-top:14px">
+          <label for="pub">Tap Card web address (optional)</label>
+          <input id="pub" type="url" inputmode="url" placeholder="yourname.github.io/tapcard">
+          <p class="note">Where your Tap Card website is hosted. With it, a tap opens your card on iPhones too. Without it, a tap sends your contact straight to Android phones only, and the QR code holds your details directly.</p>
+        </div>
+        <p class="note" id="hostNote" hidden>This page is opened from a local file, so the link only works on this device. Put it on a website (for example GitHub Pages) for the link to work on other phones.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Preview</h2>
+        <div id="previewCard"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<div class="show" id="show" hidden role="dialog" aria-label="Your QR code">
+  <div class="qrbig" id="qrBig"></div>
+  <h3 id="showName"></h3>
+  <p>Scan with your phone camera to save my details</p>
+  <button type="button" id="showClose">Close</button>
+</div>
+
+<div class="show" id="tapView" hidden role="dialog" aria-label="Tap phones">
+  <svg class="tapart" viewBox="0 0 200 160" aria-hidden="true">
+    <rect x="22" y="20" width="70" height="124" rx="12" fill="none" stroke="#1f6feb" stroke-width="6"/>
+    <rect x="108" y="20" width="70" height="124" rx="12" fill="none" stroke="#9aa2b1" stroke-width="6"/>
+    <path d="M100 64 a22 22 0 0 1 0 36 M100 52 a36 36 0 0 1 0 60" fill="none" stroke="#1f6feb" stroke-width="5" stroke-linecap="round" transform="translate(-6 0)"/>
+  </svg>
+  <h3>Hold your phone back to back with theirs</h3>
+  <p id="tapHint">Keep both screens on. Their phone shows your card in a second or two.</p>
+  <button type="button" id="tapClose">Done</button>
+</div>
+
+<script src="qrcode.js"></script>
+<script>
+(() => {
+  const KEYS = ["n","t","o","p","e","w","a","li","ig","b","i","c"];
+  const DEFAULT_COLOR = "#1f6feb";
+  const NTAG215_URL_BYTES = 490; // usable bytes for a URL on a 504-byte NTAG215
+  const $ = (id) => document.getElementById(id);
+  // Set when running inside the Android app (see android/app/.../MainActivity.kt).
+  const native = window.TapCardNative || null;
+
+  if ("serviceWorker" in navigator && location.protocol !== "file:" && !native) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+
+  // ---------- encoding: profile <-> URL fragment ----------
+  const b64url = {
+    enc: (str) => { const bytes = new TextEncoder().encode(str); let bin = "";
+      bytes.forEach(b => bin += String.fromCharCode(b));
+      return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); },
+    dec: (s) => { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
+      const bin = atob(s); return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))); }
+  };
+  function clean(p) {
+    const out = {};
+    for (const k of KEYS) { const v = (p[k] || "").trim(); if (v && !(k === "c" && v.toLowerCase() === DEFAULT_COLOR)) out[k] = v; }
+    return out;
+  }
+  const encode = (p) => b64url.enc(JSON.stringify(clean(p)));
+  function decode(hash) {
+    const m = hash.match(/^#c=([A-Za-z0-9_-]+)$/);
+    if (!m) return null;
+    try { const o = JSON.parse(b64url.dec(m[1])); return o && typeof o === "object" ? o : null; } catch { return null; }
+  }
+  // The address of the card website. In the Android app the page runs from the phone itself,
+  // so the person sets where the site is hosted; until then there is no shareable link.
+  const PUB_KEY = "tapcard.publicUrl";
+  function publicBase() {
+    if (native) {
+      let u = ""; try { u = (localStorage.getItem(PUB_KEY) || "").trim(); } catch {}
+      if (!u) return null;
+      u = (/^https?:\/\//i.test(u) ? u : "https://" + u).split("#")[0];
+      return u;
+    }
+    return location.protocol === "file:" ? null : location.href.split("#")[0];
+  }
+  const linkFor = (p) => { const b = publicBase(); return b ? b + "#c=" + encode(p) : null; };
+  // What the QR code holds: the card link, or the contact itself when there is no link.
+  const qrText = (p) => linkFor(p) || vcard(clean(p));
+
+  // ---------- helpers ----------
+  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  const withHttp = (u) => /^https?:\/\//i.test(u) ? u : "https://" + u;
+  const handle = (u) => u.replace(/^https?:\/\/(www\.)?[^/]+\/(in\/)?/i, "").replace(/^@/, "").replace(/\/$/, "");
+  const safeColor = (c) => /^#[0-9a-f]{6}$/i.test(c || "") ? c : DEFAULT_COLOR;
+  const initials = (n) => (n || "?").trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+  const slug = (n) => (n || "contact").trim().replace(/[^\w]+/g, "-").replace(/^-|-$/g, "") || "contact";
+
+  // ---------- vCard 3.0 (best compatibility with iPhone + Android) ----------
+  function vcard(p) {
+    const e = (s) => String(s).replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/([,;])/g, "\\$1");
+    const name = (p.n || "").trim(); const parts = name.split(/\s+/);
+    const last = parts.length > 1 ? parts.pop() : ""; const first = parts.join(" ");
+    const L = ["BEGIN:VCARD", "VERSION:3.0", `N:${e(last)};${e(first)};;;`, `FN:${e(name || p.o || "Contact")}`];
+    if (p.o) L.push(`ORG:${e(p.o)}`);
+    if (p.t) L.push(`TITLE:${e(p.t)}`);
+    if (p.p) L.push(`TEL;TYPE=CELL:${e(p.p)}`);
+    if (p.e) L.push(`EMAIL;TYPE=INTERNET:${e(p.e)}`);
+    if (p.w) L.push(`URL:${e(withHttp(p.w))}`);
+    if (p.li) L.push(`URL;TYPE=LinkedIn:${e("https://www.linkedin.com/in/" + handle(p.li))}`);
+    if (p.ig) L.push(`URL;TYPE=Instagram:${e("https://instagram.com/" + handle(p.ig))}`);
+    if (p.a) L.push(`ADR;TYPE=WORK:;;${e(p.a)};;;;`);
+    if (p.i) L.push(`PHOTO;VALUE=URI:${e(p.i)}`);
+    if (p.b) L.push(`NOTE:${e(p.b)}`);
+    L.push("END:VCARD");
+    return L.join("\r\n") + "\r\n";
+  }
+  function downloadVcf(p) {
+    if (native) { native.saveContact(JSON.stringify(p)); return; }
+    const blob = new Blob([vcard(p)], { type: "text/vcard;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = slug(p.n) + ".vcf";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  // ---------- card rendering (shared by viewer + preview) ----------
+  function renderCard(p, el) {
+    p = clean(p);
+    if (!p.n && !p.o && !p.p && !p.e) { el.innerHTML = '<div class="card"><div class="empty">Start typing to see your card.</div></div>'; return; }
+    const rows = [];
+    const row = (ic, text, href) => rows.push(`<li>${href ? `<a href="${esc(href)}"${/^https?:/.test(href) ? ' target="_blank" rel="noopener"' : ""}>` : "<span>"}<span class="ic" aria-hidden="true">${ic}</span>${esc(text)}${href ? "</a>" : "</span>"}</li>`);
+    if (p.p) row("☎", p.p, "tel:" + p.p.replace(/[^\d+]/g, ""));
+    if (p.e) row("@", p.e, "mailto:" + p.e);
+    if (p.w) row("⌂", p.w.replace(/^https?:\/\//, ""), withHttp(p.w));
+    if (p.li) row("in", "LinkedIn · " + handle(p.li), "https://www.linkedin.com/in/" + handle(p.li));
+    if (p.ig) row("◎", "Instagram · @" + handle(p.ig), "https://instagram.com/" + handle(p.ig));
+    if (p.a) row("⚲", p.a, "https://maps.google.com/?q=" + encodeURIComponent(p.a));
+    const role = [p.t, p.o].filter(Boolean).join(" · ");
+    el.innerHTML = `
+      <article class="card" style="--card-accent:${safeColor(p.c)}">
+        <div class="banner"></div>
+        <div class="body">
+          <div class="avatar">${p.i ? `<img src="${esc(p.i)}" alt="" onerror="this.remove()">` : ""}<span>${esc(initials(p.n || p.o))}</span></div>
+          <h3>${esc(p.n || p.o)}</h3>
+          ${role ? `<p class="role">${esc(role)}</p>` : ""}
+          ${p.b ? `<p class="bio">${esc(p.b)}</p>` : ""}
+          <button class="save" type="button">Save to contacts</button>
+          ${rows.length ? `<ul class="rows">${rows.join("")}</ul>` : ""}
+        </div>
+      </article>`;
+    const img = el.querySelector(".avatar img");
+    if (img) img.addEventListener("load", () => { const s = img.nextElementSibling; if (s) s.remove(); });
+    el.querySelector(".save").addEventListener("click", () => downloadVcf(p));
+  }
+
+  // ---------- viewer mode ----------
+  const shared = decode(location.hash);
+  if (shared) {
+    $("viewer").hidden = false;
+    document.title = (shared.n || "Contact") + " · Tap Card";
+    renderCard(shared, $("viewerCard"));
+    window.addEventListener("hashchange", () => location.reload());
+    return;
+  }
+
+  // ---------- editor mode ----------
+  $("editor").hidden = false;
+  const form = $("form");
+  const STORE = "tapcard.profile";
+  const read = () => Object.fromEntries(KEYS.map(k => [k, form.elements[k].value]));
+  try { const saved = JSON.parse(localStorage.getItem(STORE) || "null");
+    if (saved) KEYS.forEach(k => { if (saved[k] != null) form.elements[k].value = saved[k]; });
+    if (saved && (saved.n || "").trim()) document.querySelector(".grid").classList.add("ready"); } catch {}
+
+  if (location.protocol === "file:" && !native) $("hostNote").hidden = false;
+
+  const hasNfc = "NDEFReader" in window;
+  $("nfcNote").textContent = hasNfc
+    ? "Hold a blank NFC tag (NTAG215 or NTAG216) to the back of your phone after pressing the button."
+    : "Writing NFC tags from the browser only works in Chrome on Android. On iPhone, copy the link and write it with a free app such as NFC Tools (Write → Add a record → URL).";
+
+  function status(msg, ok = true) { const s = $("status"); s.textContent = msg; s.style.color = ok ? "var(--ok)" : "var(--warn)"; }
+
+  function update() {
+    const p = read();
+    try { localStorage.setItem(STORE, JSON.stringify(p)); } catch {}
+    const link = linkFor(p);
+    $("link").textContent = link || "No web address yet, so the QR code holds your contact details directly.";
+    if (link) $("openBtn").href = link;
+    $("openBtn").hidden = $("copyBtn").hidden = !link;
+    if (native) native.setCard(link || "", (p.n || p.o || p.p || p.e).trim() ? vcard(clean(p)) : "");
+
+    const q = qrcode(0, "M"); q.addData(qrText(p)); q.make();
+    $("qr").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+
+    const m = $("meter");
+    const bytes = link ? new TextEncoder().encode(link).length : 0;
+    if (!link || native) { m.className = "meter"; m.textContent = ""; }
+    else if (bytes <= 130) { m.className = "meter ok"; m.textContent = `${bytes} bytes · fits any NFC tag (NTAG213 and up)`; }
+    else if (bytes <= NTAG215_URL_BYTES) { m.className = "meter ok"; m.textContent = `${bytes} bytes · fits NTAG215 / NTAG216 tags`; }
+    else if (bytes <= 860) { m.className = "meter warn"; m.textContent = `${bytes} bytes · needs an NTAG216 tag. Shorten the bio or photo URL to fit smaller tags.`; }
+    else { m.className = "meter warn"; m.textContent = `${bytes} bytes · too long for NFC tags. Shorten the bio or photo URL. The QR code still works.`; }
+
+    renderCard(p, $("previewCard"));
+  }
+  form.addEventListener("input", update);
+  update();
+
+  $("copyBtn").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(linkFor(read())); status("Link copied."); }
+    catch { status("Couldn't copy. Select the link above and copy it.", false); }
+  });
+  $("vcfBtn").addEventListener("click", () => downloadVcf(clean(read())));
+  $("qrBtn").addEventListener("click", () => {
+    const p = read(); const q = qrcode(0, "M"); q.addData(qrText(p)); q.make();
+    const size = 1024, cells = q.getModuleCount() + 8, cell = size / cells;
+    const cv = document.createElement("canvas"); cv.width = cv.height = size;
+    const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, size, size); g.fillStyle = "#000";
+    for (let r = 0; r < q.getModuleCount(); r++) for (let c = 0; c < q.getModuleCount(); c++)
+      if (q.isDark(r, c)) g.fillRect(Math.floor((c + 4) * cell), Math.floor((r + 4) * cell), Math.ceil(cell), Math.ceil(cell));
+    const a = document.createElement("a"); a.href = cv.toDataURL("image/png"); a.download = slug(p.n) + "-qr.png"; a.click();
+  });
+
+  // ---------- full-screen QR ----------
+  let wakeLock = null;
+  async function openShow() {
+    const p = read(); const q = qrcode(0, "M"); q.addData(qrText(p)); q.make();
+    $("qrBig").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    $("showName").textContent = p.n.trim() || p.o.trim() || "My card";
+    $("show").hidden = false;
+    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+  }
+  function closeShow() { $("show").hidden = true; try { wakeLock?.release(); } catch {} wakeLock = null; }
+  $("showBtn").addEventListener("click", openShow);
+  $("showClose").addEventListener("click", closeShow);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeShow(); closeTap(); } });
+
+  // ---------- phone-to-phone tap (Android app only) ----------
+  function openTap() {
+    if (!native.nfcEnabled()) {
+      status("NFC is off. Turn it on, then come back and press Tap phones.", false);
+      native.openNfcSettings(); return;
+    }
+    const p = read();
+    if (!(p.n || p.o || p.p || p.e).trim()) { status("Add your name or phone number first.", false); return; }
+    $("tapHint").textContent = linkFor(p)
+      ? "Keep both screens on and unlocked. Their phone shows your card in a second or two. Works with iPhones and Android phones."
+      : "Keep both screens on and unlocked. Works with Android phones. To reach iPhones too, add your Tap Card web address under Share.";
+    $("tapView").hidden = false;
+    native.enterTapMode();
+  }
+  function closeTap() {
+    if ($("tapView").hidden) return;
+    $("tapView").hidden = true;
+    native?.exitTapMode();
+  }
+  $("tapClose").addEventListener("click", closeTap);
+  // Android back button: close an open full-screen view instead of leaving the app.
+  window.tapcardBack = () => {
+    if (!$("tapView").hidden) { closeTap(); return true; }
+    if (!$("show").hidden) { closeShow(); return true; }
+    return false;
+  };
+
+  if (native) {
+    $("nfcBtn").hidden = $("qrBtn").hidden = true; // tag writing and file downloads are for the website
+    $("vcfBtn").textContent = "Save to my contacts";
+    $("pubBox").hidden = false;
+    try { $("pub").value = localStorage.getItem(PUB_KEY) || ""; } catch {}
+    $("pub").addEventListener("input", () => { try { localStorage.setItem(PUB_KEY, $("pub").value); } catch {} update(); });
+    if (native.hceSupported()) {
+      $("tapBtn").hidden = false;
+      $("showBtn").classList.remove("primary");
+      $("tapBtn").addEventListener("click", openTap);
+      $("nfcNote").textContent = "Tap phones: hold the back of your phone against theirs. iPhones (XS and newer) and Android phones with NFC on can read it.";
+    } else {
+      $("nfcNote").textContent = "This phone can't share by tapping (no NFC card emulation). Use the QR code instead.";
+    }
+    update();
+  }
+
+  // ---------- native share sheet ----------
+  if (native || (navigator.share && linkFor(read()))) {
+    $("shareBtn").hidden = false;
+    $("shareBtn").addEventListener("click", async () => {
+      const p = read(); const link = linkFor(p);
+      if (native) { native.share(link ? `${p.n.trim() || "My"} contact card: ${link}` : vcard(clean(p))); return; }
+      try { await navigator.share({ title: (p.n || "My") + " · contact card", text: "Here are my contact details:", url: linkFor(p) }); }
+      catch (err) { if (err.name !== "AbortError") status("Couldn't open the share sheet.", false); }
+    });
+  }
+
+  // ---------- install prompt ----------
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  let dismissed = false; try { dismissed = localStorage.getItem("tapcard.installDismissed") === "1"; } catch {}
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let deferredPrompt = null;
+  if (!standalone && !dismissed && !native) {
+    window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredPrompt = e; $("install").hidden = false; });
+    if (isIOS) {
+      $("installText").textContent = "Install Tap Card: tap the Share button in Safari, then “Add to Home Screen”.";
+      $("installBtn").hidden = true; $("install").hidden = false;
+    }
+  }
+  $("installBtn").addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; $("install").hidden = true;
+  });
+  $("installClose").addEventListener("click", () => {
+    $("install").hidden = true; try { localStorage.setItem("tapcard.installDismissed", "1"); } catch {}
+  });
+  window.addEventListener("appinstalled", () => { $("install").hidden = true; });
+
+  $("nfcBtn").addEventListener("click", async () => {
+    if (!hasNfc) { status("This browser can't write NFC tags. Copy the link and use an NFC app instead.", false); return; }
+    if (!linkFor(read())) { status("Open this page from its website address first, so the tag gets a link that works on other phones.", false); return; }
+    const btn = $("nfcBtn"); btn.disabled = true;
+    status("Ready. Hold a tag to the back of your phone…");
+    try {
+      const writer = new NDEFReader();
+      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 30000);
+      await writer.write({ records: [{ recordType: "url", data: linkFor(read()) }] }, { signal: ctl.signal });
+      clearTimeout(timer);
+      status("Done. Tap the tag with any phone to test it.");
+    } catch (err) {
+      status(err.name === "AbortError" ? "Timed out. Press the button and try again." :
+             err.name === "NotAllowedError" ? "NFC permission was denied. Allow NFC for this site and try again." :
+             "Couldn't write the tag: " + err.message + ". The tag may be locked or too small.", false);
+    } finally { btn.disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>
